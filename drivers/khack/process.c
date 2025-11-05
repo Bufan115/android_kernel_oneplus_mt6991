@@ -9,6 +9,9 @@
 #endif
 #define ARC_PATH_MAX 256
 
+    struct vm_area_struct *vma;
+VMA_ITERATOR(iter, mm, 0);
+
 extern struct mm_struct *get_task_mm(struct task_struct *task);
 /*
 #if(LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 61))
@@ -36,7 +39,7 @@ uintptr_t get_module_base(pid_t pid, char* name)
     }
     mmput(mm);
 
-    for (vma = mm->mmap; vma; vma = vma->vm_next) {
+    for_each_vma(iter, vma)  {
         char buf[ARC_PATH_MAX];
         char *path_nm = "";
 
