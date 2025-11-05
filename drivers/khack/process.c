@@ -1,29 +1,16 @@
-#include "process.h"
 #include <linux/sched.h>
-#include <linux/module.h>
-#include <linux/tty.h>
-#include <linux/mm.h>
-#include <linux/version.h>
-#if(LINUX_VERSION_CODE >= KERNEL_VERSION(4,14,0))
 #include <linux/sched/mm.h>
-#endif
-#define ARC_PATH_MAX 256
+#include <linux/mm.h>
+#include <linux/fs.h>
+#include <linux/dcache.h>
+#include "process.h"
 
-
-
-extern struct mm_struct *get_task_mm(struct task_struct *task);
-/*
-#if(LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 61))
-extern void mmput(struct mm_struct *);
-#endif
-*/
-
-static unsigned long get_module_base(pid_t pid, const char *name)
+uintptr_t get_module_base(pid_t pid, const char *name)
 {
     struct task_struct *task;
     struct mm_struct *mm;
     struct vm_area_struct *vma;
-    unsigned long base = 0;
+    uintptr_t base = 0;
     
     task = get_pid_task(find_get_pid(pid), PIDTYPE_PID);
     if (!task)
@@ -33,21 +20,25 @@ static unsigned long get_module_base(pid_t pid, const char *name)
     if (!mm)
         goto out_task;
     
-    // 最简单的VMA遍历方法
-    vma = mm->mmap;
-    while (vma) {
+    // 使用find_vma进行兼容性遍历
+    unsigned long addr = 0;
+    while ((vma = find_vma(mm, addr)) != NULL) {
         if (vma->vm_file) {
             const char *vma_name = vma->vm_file->f_path.dentry->d_name.name;
-            if (strcmp(vma_name, name) == 0) {
+            if (vma_name && strcmp(vma_name, name) == 0) {
                 base = vma->vm_start;
                 break;
             }
         }
         
         // 移动到下一个VMA
-        if (vma->vm_next)
-            vma = vma->vm_next;
+        if (vma->vm_end > addr)
+            addr = vma->vm_end;
         else
+            break;
+            
+        // 防止无限循环
+        if (addr == 0)
             break;
     }
     
