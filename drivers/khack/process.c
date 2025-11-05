@@ -26,34 +26,17 @@ static unsigned long get_module_base(pid_t pid, const char *name)
     struct vm_area_struct *vma;
     unsigned long base = 0;
     
-    // 获取任务结构
     task = get_pid_task(find_get_pid(pid), PIDTYPE_PID);
     if (!task)
         return 0;
     
-    // 获取内存管理结构
     mm = get_task_mm(task);
     if (!mm)
         goto out_task;
     
-    // 使用兼容的VMA遍历方法
-    // 方法1: 尝试使用现代内核的VMA迭代器
-#ifdef CONFIG_MMU
-    {
-        VMA_ITERATOR(iter, mm, 0);
-        for_each_vma(iter, vma) {
-            if (vma->vm_file) {
-                const char *vma_name = vma->vm_file->f_path.dentry->d_name.name;
-                if (strcmp(vma_name, name) == 0) {
-                    base = vma->vm_start;
-                    break;
-                }
-            }
-        }
-    }
-#else
-    // 方法2: 传统VMA遍历
-    for (vma = mm->mmap; vma; vma = vma->vm_next) {
+    // 最简单的VMA遍历方法
+    vma = mm->mmap;
+    while (vma) {
         if (vma->vm_file) {
             const char *vma_name = vma->vm_file->f_path.dentry->d_name.name;
             if (strcmp(vma_name, name) == 0) {
@@ -61,8 +44,13 @@ static unsigned long get_module_base(pid_t pid, const char *name)
                 break;
             }
         }
+        
+        // 移动到下一个VMA
+        if (vma->vm_next)
+            vma = vma->vm_next;
+        else
+            break;
     }
-#endif
     
     mmput(mm);
 out_task:
