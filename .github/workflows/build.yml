@@ -60,88 +60,11 @@ jobs:
         mkdir -p khack_package
         cp drivers/khack/khack.ko khack_package/
         
-        # 创建测试程序
-        cat > khack_package/test_driver.c << 'TEST_EOF'
-#include <stdio.h>
-#include <sys/ioctl.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <string.h>
 
-typedef struct _COPY_MEMORY {
-    int pid;
-    unsigned long addr;
-    void *buffer;
-    size_t size;
-} COPY_MEMORY;
-
-typedef struct _MODULE_BASE {
-    int pid;
-    char *name;
-    unsigned long base;
-} MODULE_BASE;
-
-enum OPERATIONS {
-    OP_READ_MEM = 0x801,
-    OP_WRITE_MEM = 0x802,
-    OP_MODULE_BASE = 0x803,
-};
-
-int main() {
-    int fd = open("/dev/JiangNight", O_RDWR);
-    if (fd < 0) {
-        perror("打开设备失败");
-        return -1;
-    }
-    
-    printf("✅ 驱动设备打开成功！\n");
-    
-    // 测试读取自身内存
-    COPY_MEMORY cm;
-    char buffer[16];
-    
-    cm.pid = getpid();
-    cm.addr = (unsigned long)&main;
-    cm.buffer = buffer;
-    cm.size = sizeof(buffer);
-    
-    if (ioctl(fd, OP_READ_MEM, &cm) == 0) {
-        printf("✅ 内存读取成功！\n");
-        printf("读取内容（前16字节）: ");
-        for (int i = 0; i < 16; i++) {
-            printf("%02x ", (unsigned char)buffer[i]);
-        }
-        printf("\n");
-    } else {
-        perror("❌ 内存读取失败");
-    }
-    
-    close(fd);
-    return 0;
-}
-TEST_EOF
         
         # 编译测试程序（静态链接）
         aarch64-linux-gnu-gcc -static -o khack_package/test_driver khack_package/test_driver.c
         
-        # 创建加载脚本
-        cat > khack_package/load.sh << 'LOAD_EOF'
-#!/bin/bash
-echo "加载 khack 内核模块..."
-insmod khack.ko
-echo "模块状态:"
-lsmod | grep khack
-echo "设备节点:"
-ls -la /dev/JiangNight 2>/dev/null && echo "✅ 驱动加载成功" || echo "设备节点需要初始化"
-LOAD_EOF
-        
-        # 创建卸载脚本
-        cat > khack_package/unload.sh << 'UNLOAD_EOF'
-#!/bin/bash
-echo "卸载 khack 内核模块..."
-rmmod khack 2>/dev/null && echo "✅ 驱动卸载成功" || echo "❌ 驱动卸载失败"
-UNLOAD_EOF
         
         chmod +x khack_package/load.sh
         chmod +x khack_package/unload.sh
