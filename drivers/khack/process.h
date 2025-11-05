@@ -1,3 +1,8 @@
-#include <linux/kernel.h>
+#ifndef _PROCESS_H
+#define _PROCESS_H
 
-uintptr_t get_module_base(pid_t pid, char* name);
+#include <linux/types.h>
+
+uintptr_t get_module_base(pid_t pid, const char* name);
+
+#endif
