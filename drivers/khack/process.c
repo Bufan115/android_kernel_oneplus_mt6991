@@ -9,8 +9,7 @@
 #endif
 #define ARC_PATH_MAX 256
 
-    struct vm_area_struct *vma;
-VMA_ITERATOR(iter, mm, 0);
+
 
 extern struct mm_struct *get_task_mm(struct task_struct *task);
 /*
