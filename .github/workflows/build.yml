@@ -1,4 +1,4 @@
-namename: Build Kernel Module
+name: Build Kernel Module
 
 on:
   push:
@@ -17,7 +17,7 @@ jobs:
       with:
         submodules: recursive
 
-    - name: Set up environment
+    - name: Set up build environment
       run: |
         sudo apt-get update
         sudo apt-get install -y \
@@ -46,42 +46,23 @@ jobs:
         export CROSS_COMPILE=aarch64-linux-gnu-
         make modules_prepare
         make M=drivers/khack
+        echo "✅ 模块编译完成"
         file drivers/khack/khack.ko
+        ls -lh drivers/khack/khack.ko
 
-    - name: Upload module artifact
+    - name: Upload kernel module
       uses: actions/upload-artifact@v4
       with:
-        name: khack-module
+        name: khack-kernel-module
         path: drivers/khack/khack.ko
         retention-days: 30
 
-    - name: Create test package
-      run: |
-        mkdir -p khack_package
-        cp drivers/khack/khack.ko khack_package/
-        
-
-        
-        # 编译测试程序（静态链接）
-        aarch64-linux-gnu-gcc -static -o khack_package/test_driver khack_package/test_driver.c
-        
-        
-        chmod +x khack_package/load.sh
-        chmod +x khack_package/unload.sh
-
-    - name: Upload complete package
-      uses: actions/upload-artifact@v4
-      with:
-        name: khack-complete-package
-        path: khack_package/
-        retention-days: 30
-
-    - name: Show build info
+    - name: Show build information
       run: |
         echo "=== 构建信息 ==="
         echo "内核版本:"
         head -n 5 Makefile | grep -E "VERSION|PATCHLEVEL|SUBLEVEL"
-        echo "模块大小:"
-        ls -lh drivers/khack/khack.ko
-        echo "架构:"
+        echo "模块文件信息:"
         file drivers/khack/khack.ko
+        echo "模块大小:"
+        ls -lh drivers/khack/khack.ko | awk '{print $5}'
