@@ -1,6 +1,0 @@
-config KERNEL_HACK
-    tristate "Kernel Memory Access Driver"
-    default n
-    help
-        This driver provides memory access capabilities for user space applications.
-        Use with caution as it can compromise system security.
