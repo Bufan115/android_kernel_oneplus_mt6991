@@ -18,13 +18,16 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y build-essential libncurses-dev libssl-dev libelf-dev bison flex bc git gcc-aarch64-linux-gnu
 
-    - name: Configure kernel with GKI
+    - name: Configure kernel
       run: |
         export ARCH=arm64
         export CROSS_COMPILE=aarch64-linux-gnu-
-        # 使用 GKI defconfig（通用内核镜像）
-        make gki_defconfig
+        make defconfig
         echo "CONFIG_KERNEL_HACK=m" >> .config
+        # 启用必要的内核选项
+        echo "CONFIG_MODULES=y" >> .config
+        echo "CONFIG_MODULE_UNLOAD=y" >> .config
+        echo "CONFIG_KALLSYMS=y" >> .config
         make olddefconfig
 
     - name: Build kernel module
@@ -34,6 +37,10 @@ jobs:
         make modules_prepare
         make M=drivers/khack
         echo "✅ 模块编译完成"
+
+    - name: Check module dependencies
+      run: |
+        aarch64-linux-gnu-nm drivers/khack/khack.ko | grep " U " || echo "✅ 没有未解析的符号"
 
     - name: Upload kernel module
       uses: actions/upload-artifact@v4
