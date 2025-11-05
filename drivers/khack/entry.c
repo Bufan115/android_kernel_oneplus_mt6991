@@ -60,16 +60,20 @@ long dispatch_ioctl(struct file *const file, unsigned int const cmd, unsigned lo
 	}
 	case OP_MODULE_BASE:
 	{
-		if (copy_from_user(&mb, (void __user *)arg, sizeof(mb)) != 0 || copy_from_user(name, (void __user *)mb.name, sizeof(name) - 1) != 0)
-		{
-			return -1;
-		}
-		mb.base = get_module_base(mb.pid, name);
-		if (copy_to_user((void __user *)arg, &mb, sizeof(mb)) != 0)
-		{
-			return -1;
-		}
-		break;
+	    if (copy_from_user(&mb, (void __user *)arg, sizeof(mb)) != 0 || 
+	        copy_from_user(name, (void __user *)mb.name, sizeof(name) - 1) != 0)
+	    {
+	        return -1;
+	    }
+	    
+	    // 如果 get_module_base 返回 0，表示不支持此功能
+	    mb.base = get_module_base(mb.pid, name);
+	    
+	    if (copy_to_user((void __user *)arg, &mb, sizeof(mb)) != 0)
+	    {
+	        return -1;
+	    }
+	    break;
 	}
 	default:
 		break;
