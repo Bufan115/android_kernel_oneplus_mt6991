@@ -27,23 +27,34 @@ jobs:
         # 启用必要的内核选项
         echo "CONFIG_MODULES=y" >> .config
         echo "CONFIG_MODULE_UNLOAD=y" >> .config
-        echo "CONFIG_KALLSYMS=y" >> .config
+        echo "CONFIG_RANDOM=y" >> .config
         make olddefconfig
+
+    - name: Build kernel
+      run: |
+        export ARCH=arm64
+        export CROSS_COMPILE=aarch64-linux-gnu-
+        make -j$(nproc) modules_prepare
 
     - name: Build kernel module
       run: |
         export ARCH=arm64
         export CROSS_COMPILE=aarch64-linux-gnu-
-        make modules_prepare
         make M=drivers/khack
         echo "✅ 模块编译完成"
 
-    - name: Check module dependencies
+    - name: Check module
       run: |
-        aarch64-linux-gnu-nm drivers/khack/khack.ko | grep " U " || echo "✅ 没有未解析的符号"
+        if [ -f "drivers/khack/khack.ko" ]; then
+            echo "✅ 编译成功"
+            file drivers/khack/khack.ko
+        else
+            echo "❌ 编译失败"
+            exit 1
+        fi
 
     - name: Upload kernel module
       uses: actions/upload-artifact@v4
       with:
-        name: khack-kernel-module
+        name: wanbai-kernel-module
         path: drivers/khack/khack.ko
