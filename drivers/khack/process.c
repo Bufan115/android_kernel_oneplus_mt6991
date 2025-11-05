@@ -8,6 +8,7 @@
 #include <linux/path.h>
 #include <linux/dcache.h>
 #include <linux/mm_types.h>
+#include <linux/string.h>
 
 #define ARC_PATH_MAX 256
 
@@ -42,26 +43,23 @@ uintptr_t get_module_base(pid_t pid, char *name)
         return 0;
     }
 
-    // 使用现代内核的 VMA 遍历方式
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 8, 0)
     // 使用 VMA 迭代器（新内核）
     struct vm_area_struct *vma;
     VMA_ITERATOR(vmi, mm, 0);
+    
     for_each_vma(vmi, vma)
     {
-        char *path_nm = NULL;
-        char *dentry_path;
-
         if (vma->vm_file)
         {
-            dentry_path = (char *)__get_free_page(GFP_KERNEL);
+            char *dentry_path = (char *)__get_free_page(GFP_KERNEL);
             if (dentry_path)
             {
                 char *p = file_path(vma->vm_file, dentry_path, PAGE_SIZE);
                 if (!IS_ERR(p))
                 {
-                    path_nm = kbasename(p);
-                    if (path_nm && !strcmp(path_nm, name))
+                    const char *path_nm = kbasename(p);  // 使用 const char*
+                    if (path_nm && strcmp(path_nm, name) == 0)
                     {
                         base_addr = vma->vm_start;
                         free_page((unsigned long)dentry_path);
@@ -73,9 +71,32 @@ uintptr_t get_module_base(pid_t pid, char *name)
         }
     }
 #else
-    // 对于旧内核的兼容处理
-    // 如果上述方法不行，我们使用更简单的方法：返回 0 表示不支持
-    base_addr = 0;
+    // 对于旧内核，我们使用简化版本
+    struct vm_area_struct *vma;
+    
+    // 使用兼容的方式遍历 VMA
+    for (vma = mm->mmap; vma; vma = vma->vm_next)
+    {
+        if (vma->vm_file)
+        {
+            char *dentry_path = (char *)__get_free_page(GFP_KERNEL);
+            if (dentry_path)
+            {
+                char *p = d_path(&vma->vm_file->f_path, dentry_path, PAGE_SIZE);
+                if (!IS_ERR(p))
+                {
+                    const char *path_nm = kbasename(p);  // 使用 const char*
+                    if (path_nm && strcmp(path_nm, name) == 0)
+                    {
+                        base_addr = vma->vm_start;
+                        free_page((unsigned long)dentry_path);
+                        break;
+                    }
+                }
+                free_page((unsigned long)dentry_path);
+            }
+        }
+    }
 #endif
 
     mmput(mm);
