@@ -3,8 +3,6 @@ name: Build Kernel Module
 on:
   push:
     branches: [ oneplus/mt6991_v_15.0.2_ace5_ultra ]
-  pull_request:
-    branches: [ oneplus/mt6991_v_15.0.2_ace5_ultra ]
   workflow_dispatch:
 
 jobs:
@@ -14,29 +12,18 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-      with:
-        submodules: recursive
 
     - name: Set up build environment
       run: |
         sudo apt-get update
-        sudo apt-get install -y \
-          build-essential \
-          libncurses-dev \
-          libssl-dev \
-          libelf-dev \
-          bison \
-          flex \
-          bc \
-          git \
-          gcc-aarch64-linux-gnu \
-          g++-aarch64-linux-gnu
+        sudo apt-get install -y build-essential libncurses-dev libssl-dev libelf-dev bison flex bc git gcc-aarch64-linux-gnu
 
-    - name: Configure kernel
+    - name: Configure kernel with GKI
       run: |
         export ARCH=arm64
         export CROSS_COMPILE=aarch64-linux-gnu-
-        make oneplus_ace5_ultra_defconfig
+        # 使用 GKI defconfig（通用内核镜像）
+        make gki_defconfig
         echo "CONFIG_KERNEL_HACK=m" >> .config
         make olddefconfig
 
@@ -47,22 +34,9 @@ jobs:
         make modules_prepare
         make M=drivers/khack
         echo "✅ 模块编译完成"
-        file drivers/khack/khack.ko
-        ls -lh drivers/khack/khack.ko
 
     - name: Upload kernel module
       uses: actions/upload-artifact@v4
       with:
         name: khack-kernel-module
         path: drivers/khack/khack.ko
-        retention-days: 30
-
-    - name: Show build information
-      run: |
-        echo "=== 构建信息 ==="
-        echo "内核版本:"
-        head -n 5 Makefile | grep -E "VERSION|PATCHLEVEL|SUBLEVEL"
-        echo "模块文件信息:"
-        file drivers/khack/khack.ko
-        echo "模块大小:"
-        ls -lh drivers/khack/khack.ko | awk '{print $5}'
