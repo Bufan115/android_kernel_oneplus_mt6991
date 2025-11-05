@@ -8,7 +8,7 @@
 
 #define DEVICE_NAME "wanbai"
 
-char* genRandomString()
+char* genRandomString(void)
 {
     static char string[10];
     int i, seed, random;
