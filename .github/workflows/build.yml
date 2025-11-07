@@ -27,40 +27,29 @@ jobs:
         # 启用必要的内核选项
         echo "CONFIG_MODULES=y" >> .config
         echo "CONFIG_MODULE_UNLOAD=y" >> .config
-        echo "CONFIG_KALLSYMS=y" >> .config
-        echo "CONFIG_KALLSYMS_ALL=y" >> .config
-        # 禁用可能引起问题的 KVM 选项
-        echo "CONFIG_KVM=n" >> .config
-        echo "CONFIG_VHOST_NET=n" >> .config
+        echo "CONFIG_RANDOM=y" >> .config
         make olddefconfig
 
-    - name: Build kernel modules only
+    - name: Build kernel
       run: |
         export ARCH=arm64
         export CROSS_COMPILE=aarch64-linux-gnu-
-        # 只编译模块相关部分，避免完整内核编译
         make -j$(nproc) modules_prepare
-        make -j$(nproc) modules
 
-    - name: Build specific kernel module
+    - name: Build kernel module
       run: |
         export ARCH=arm64
         export CROSS_COMPILE=aarch64-linux-gnu-
-        # 单独编译你的模块
         make M=drivers/khack
         echo "✅ 模块编译完成"
 
     - name: Check module
       run: |
-        if [ -f "drivers/khack/hack.ko" ]; then
+        if [ -f "drivers/khack/khack.ko" ]; then
             echo "✅ 编译成功"
-            file drivers/khack/hack.ko
-            # 检查模块依赖
-            aarch64-linux-gnu-readelf -s drivers/khack/hack.ko | head -20
+            file drivers/khack/khack.ko
         else
             echo "❌ 编译失败"
-            # 显示构建目录内容以调试
-            ls -la drivers/khack/
             exit 1
         fi
 
@@ -68,4 +57,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: wanbai-kernel-module
-        path: drivers/khack/hack.ko
+        path: drivers/khack/khack.ko
