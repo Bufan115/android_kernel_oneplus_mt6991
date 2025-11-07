@@ -27,14 +27,16 @@ jobs:
         # 启用必要的内核选项
         echo "CONFIG_MODULES=y" >> .config
         echo "CONFIG_MODULE_UNLOAD=y" >> .config
-        echo "CONFIG_RANDOM=y" >> .config
+        echo "CONFIG_KALLSYMS=y" >> .config
+        echo "CONFIG_KALLSYMS_ALL=y" >> .config
         make olddefconfig
 
-    - name: Build kernel
+    - name: Build kernel (full build)
       run: |
         export ARCH=arm64
         export CROSS_COMPILE=aarch64-linux-gnu-
-        make -j$(nproc) modules_prepare
+        # 先完整编译内核，生成 Module.symvers
+        make -j$(nproc)
 
     - name: Build kernel module
       run: |
@@ -45,11 +47,14 @@ jobs:
 
     - name: Check module
       run: |
-        if [ -f "drivers/khack/khack.ko" ]; then
+        if [ -f "drivers/khack/hack.ko" ]; then
             echo "✅ 编译成功"
-            file drivers/khack/khack.ko
+            file drivers/khack/hack.ko
+            # 检查模块信息
+            aarch64-linux-gnu-nm drivers/khack/hack.ko | grep -E "get_pid_task|_printk" || echo "未找到外部符号是正常的"
         else
             echo "❌ 编译失败"
+            ls -la drivers/khack/
             exit 1
         fi
 
@@ -57,4 +62,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: wanbai-kernel-module
-        path: drivers/khack/khack.ko
+        path: drivers/khack/hack.ko
