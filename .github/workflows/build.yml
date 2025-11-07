@@ -29,19 +29,24 @@ jobs:
         echo "CONFIG_MODULE_UNLOAD=y" >> .config
         echo "CONFIG_KALLSYMS=y" >> .config
         echo "CONFIG_KALLSYMS_ALL=y" >> .config
+        # 禁用可能引起问题的 KVM 选项
+        echo "CONFIG_KVM=n" >> .config
+        echo "CONFIG_VHOST_NET=n" >> .config
         make olddefconfig
 
-    - name: Build kernel (full build)
+    - name: Build kernel modules only
       run: |
         export ARCH=arm64
         export CROSS_COMPILE=aarch64-linux-gnu-
-        # 先完整编译内核，生成 Module.symvers
-        make -j$(nproc)
+        # 只编译模块相关部分，避免完整内核编译
+        make -j$(nproc) modules_prepare
+        make -j$(nproc) modules
 
-    - name: Build kernel module
+    - name: Build specific kernel module
       run: |
         export ARCH=arm64
         export CROSS_COMPILE=aarch64-linux-gnu-
+        # 单独编译你的模块
         make M=drivers/khack
         echo "✅ 模块编译完成"
 
@@ -50,10 +55,11 @@ jobs:
         if [ -f "drivers/khack/hack.ko" ]; then
             echo "✅ 编译成功"
             file drivers/khack/hack.ko
-            # 检查模块信息
-            aarch64-linux-gnu-nm drivers/khack/hack.ko | grep -E "get_pid_task|_printk" || echo "未找到外部符号是正常的"
+            # 检查模块依赖
+            aarch64-linux-gnu-readelf -s drivers/khack/hack.ko | head -20
         else
             echo "❌ 编译失败"
+            # 显示构建目录内容以调试
             ls -la drivers/khack/
             exit 1
         fi
